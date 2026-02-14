@@ -1,0 +1,2 @@
+../Core/Src/encoder.c:5:6:Encoder_GPIO_Init	40	static
+../Core/Src/encoder.c:28:6:encoder1_isr	16	static

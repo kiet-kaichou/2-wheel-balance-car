@@ -1,0 +1,10 @@
+21:07:11 **** Incremental Build of configuration Debug for project USB_CDC ****
+make -j12 all 
+arm-none-eabi-size  USB_CDC.elf 
+   text	   data	    bss	    dec	    hex	filename
+  35192	    332	   9116	  44640	   ae60	USB_CDC.elf
+Finished building: default.size.stdout
+ 
+
+21:07:11 Build Finished. 0 errors, 0 warnings. (took 191ms)
+

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Delete resource &apos;DOAN/Core/Inc/state_machine.h&apos;" deleteContents="false" description="Delete resource &apos;DOAN/Core/Inc/state_machine.h&apos;" element1="/DOAN/Core/Inc/state_machine.h" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1763998793788"/>&#x0A;<refactoring comment="Delete resource &apos;DOAN/Core/Src/state_machine.c&apos;" deleteContents="false" description="Delete resource &apos;DOAN/Core/Src/state_machine.c&apos;" element1="/DOAN/Core/Src/state_machine.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1763998843982"/>
+</session>

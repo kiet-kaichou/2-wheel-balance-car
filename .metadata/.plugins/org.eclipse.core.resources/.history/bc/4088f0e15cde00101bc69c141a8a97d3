@@ -1,0 +1,92 @@
+#include "mpu6050.h"
+#include "main.h"
+#include <math.h>
+
+extern I2C_HandleTypeDef hi2c1;
+
+// Định nghĩa các hằng số
+#define RAD_TO_DEG 57.2957795f
+#define PITCH_OFFSET 5.0f // Góc lệch cơ khí (cần tune thực tế)
+
+float pre_pitch = 0.0f;
+
+/* ============================================================
+ * 1. HÀM KHỞI TẠO (TIMEOUT = 2ms)
+ * ============================================================ */
+void mpu6050_init()
+{
+  uint8_t set_gyro_range = GYRO_RANGE_500;
+  uint8_t set_accel_range = ACCEL_RANGE_4G;
+  uint8_t set_sleep_mode = SLEEP_MODE_OFF;
+
+  // Kiểm tra thiết bị (Timeout 2ms)
+  if (HAL_I2C_IsDeviceReady(&hi2c1, SENSOR_ADDR, 1, 2) != HAL_OK) {
+      // Nếu không tìm thấy sensor sau 2ms thì bỏ qua luôn
+      return;
+  }
+
+  // Cấu hình (Timeout 2ms cho mỗi lệnh)
+  HAL_I2C_Mem_Write(&hi2c1, SENSOR_ADDR, GYRO_CONFIG_REG, 1, &set_gyro_range, 1, 2);
+  HAL_I2C_Mem_Write(&hi2c1, SENSOR_ADDR, ACCEL_CONFIG_REG, 1, &set_accel_range, 1, 2);
+  HAL_I2C_Mem_Write(&hi2c1, SENSOR_ADDR, SLEEP_MODE_REG, 1, &set_sleep_mode, 1, 2);
+}
+
+/* ============================================================
+ * 2. HÀM ĐỌC TẤT CẢ (TIMEOUT = 2ms)
+ * Hàm này thay thế cho cả read_accel và read_gyro
+ * ============================================================ */
+void mpu6050_read_all(accel_data *accel, gyro_data *gyro)
+{
+    uint8_t buffer[14];
+
+    // Đọc 14 bytes một lần.
+    // QUAN TRỌNG: Số cuối cùng là 2 (2ms).
+    // Nếu quá 2ms mà I2C bị treo do nhiễu -> Hàm này trả về HAL_BUSY/ERROR ngay lập tức.
+    if (HAL_I2C_Mem_Read(&hi2c1, SENSOR_ADDR, 0x3B, 1, buffer, 14, 2) == HAL_OK)
+    {
+        // --- CHỈ KHI ĐỌC THÀNH CÔNG MỚI TÍNH TOÁN ---
+        // (Tránh tính toán trên dữ liệu rác làm Robot giật cục)
+
+        // 1. Accel
+        accel->x_val_raw = (int16_t)(buffer[0] << 8 | buffer[1]);
+        accel->y_val_raw = (int16_t)(buffer[2] << 8 | buffer[3]);
+        accel->z_val_raw = (int16_t)(buffer[4] << 8 | buffer[5]);
+
+        accel->x_val = (float)accel->x_val_raw / ACCEL_SENSITIVITY;
+        accel->y_val = (float)accel->y_val_raw / ACCEL_SENSITIVITY;
+        accel->z_val = (float)accel->z_val_raw / ACCEL_SENSITIVITY;
+
+        // 2. Gyro (Bỏ qua Temp tại buffer[6], [7])
+        gyro->x_val_raw = (int16_t)(buffer[8] << 8 | buffer[9]);
+        gyro->y_val_raw = (int16_t)(buffer[10] << 8 | buffer[11]);
+        gyro->z_val_raw = (int16_t)(buffer[12] << 8 | buffer[13]);
+
+        gyro->x_val = (float)gyro->x_val_raw / GYRO_SENSITIVITY;
+        gyro->y_val = (float)gyro->y_val_raw / GYRO_SENSITIVITY;
+        gyro->z_val = (float)gyro->z_val_raw / GYRO_SENSITIVITY;
+
+        // 3. Tính góc Pitch từ Accel
+        // atan2f trả về radian -> nhân RAD_TO_DEG
+        accel->pitch_angle = (-atan2f(accel->x_val, sqrtf(accel->y_val * accel->y_val + accel->z_val * accel->z_val)) * RAD_TO_DEG) + PITCH_OFFSET;
+    }
+    else
+    {
+        // XỬ LÝ KHI I2C BỊ LỖI (Optional)
+        // Nếu đọc thất bại, ta có thể reset I2C ở đây nếu cần thiết
+        // HAL_I2C_DeInit(&hi2c1);
+        // HAL_I2C_Init(&hi2c1);
+    }
+}
+
+/* ============================================================
+ * 3. BỘ LỌC BÙ
+ * ============================================================ */
+void mpu6050_complementary_filter(gyro_data *gyro, accel_data *accel, filtered_angle_t *angle, float dt)
+{
+    const float alpha = 0.96f;
+
+    // Lưu ý: Dùng gyro->y_val vì Pitch xoay quanh trục Y
+    angle->pitch = alpha * (pre_pitch + gyro->y_val * dt) + (1.0f - alpha) * accel->pitch_angle;
+
+    pre_pitch = angle->pitch;
+}

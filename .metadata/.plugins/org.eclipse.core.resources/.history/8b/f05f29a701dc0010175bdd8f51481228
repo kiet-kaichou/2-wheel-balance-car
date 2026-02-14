@@ -1,0 +1,85 @@
+#include "mpu6050.h"
+#include <math.h>
+
+// Biến hỗ trợ tính toán dt (nếu không truyền dt từ ngoài vào)
+// Nhưng tốt nhất nên truyền dt cố định 0.005 từ main
+#define RAD_TO_DEG 57.295779513f
+
+uint8_t MPU6050_Init(I2C_HandleTypeDef *hi2c)
+{
+    uint8_t check;
+    uint8_t data;
+
+    // 1. Kiểm tra ID thiết bị (WHO_AM_I - 0x75)
+    // (Optional) Có thể bỏ qua để boot nhanh hơn
+
+    // 2. Đánh thức cảm biến (PWR_MGMT_1)
+    data = 0x00;
+    if(HAL_I2C_Mem_Write(hi2c, SENSOR_ADDR, PWR_MGMT_1_REG, 1, &data, 1, 100) != HAL_OK) return 0;
+
+    // 3. Cấu hình Gyro (+/- 500dps) -> Reg 0x1B = 0x08
+    data = 0x08;
+    HAL_I2C_Mem_Write(hi2c, SENSOR_ADDR, GYRO_CONFIG_REG, 1, &data, 1, 100);
+
+    // 4. Cấu hình Accel (+/- 4g) -> Reg 0x1C = 0x08
+    data = 0x08;
+    HAL_I2C_Mem_Write(hi2c, SENSOR_ADDR, ACCEL_CONFIG_REG, 1, &data, 1, 100);
+
+    return 1; // OK
+}
+
+void MPU6050_Read_All(I2C_HandleTypeDef *hi2c, MPU6050_t *DataStruct)
+{
+    uint8_t Rec_Data[14]; // Buffer đọc tất cả (Accel + Temp + Gyro)
+
+    // ---------------------------------------------------------
+    // BƯỚC 1: ĐỌC BURST (1 Lần lấy hết dữ liệu -> Tối ưu I2C)
+    // Timeout = 2ms (QUAN TRỌNG: Chống treo xe)
+    // ---------------------------------------------------------
+    if(HAL_I2C_Mem_Read(hi2c, SENSOR_ADDR, ACCEL_XOUT_H, 1, Rec_Data, 14, 2) != HAL_OK)
+    {
+        // Nếu lỗi I2C, thoát ngay để không tính toán sai
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // BƯỚC 2: XỬ LÝ RAW DATA
+    // ---------------------------------------------------------
+    DataStruct->Ax_Raw = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
+    DataStruct->Ay_Raw = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
+    DataStruct->Az_Raw = (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
+    // Rec_Data[6,7] là Temp, bỏ qua
+    DataStruct->Gx_Raw = (int16_t)(Rec_Data[8] << 8 | Rec_Data[9]);
+    DataStruct->Gy_Raw = (int16_t)(Rec_Data[10] << 8 | Rec_Data[11]);
+    DataStruct->Gz_Raw = (int16_t)(Rec_Data[12] << 8 | Rec_Data[13]);
+
+    // ---------------------------------------------------------
+    // BƯỚC 3: CHUYỂN ĐỔI ĐƠN VỊ VẬT LÝ
+    // ---------------------------------------------------------
+    DataStruct->Ax = DataStruct->Ax_Raw / ACCEL_SENSITIVITY;
+    DataStruct->Ay = DataStruct->Ay_Raw / ACCEL_SENSITIVITY;
+    DataStruct->Az = DataStruct->Az_Raw / ACCEL_SENSITIVITY;
+
+    DataStruct->Gx = DataStruct->Gx_Raw / GYRO_SENSITIVITY;
+    DataStruct->Gy = DataStruct->Gy_Raw / GYRO_SENSITIVITY;
+    DataStruct->Gz = DataStruct->Gz_Raw / GYRO_SENSITIVITY;
+
+    // ---------------------------------------------------------
+    // BƯỚC 4: TÍNH GÓC PITCH (Nghiêng Trước/Sau)
+    // ---------------------------------------------------------
+    // Lưu ý: Tùy cách lắp cảm biến mà dùng trục X hay Y.
+    // Giả sử xe lắp MPU6050 nằm phẳng, trục Y hướng sang ngang -> Dùng Ax, Az tính Pitch.
+    // Dùng atan2 tốt hơn atan vì nó xử lý được góc 90 độ.
+    DataStruct->Pitch_Accel = atan2(DataStruct->Ax, DataStruct->Az) * RAD_TO_DEG;
+
+    // ---------------------------------------------------------
+    // BƯỚC 5: BỘ LỌC COMPLEMENTARY (Sửa lỗi Logic cũ)
+    // ---------------------------------------------------------
+    float dt = 0.005f; // Thời gian ngắt Timer (5ms)
+
+    // Gyro trục Y là trục quay Pitch (kiểm tra lại thực tế trên xe của bạn)
+    // Công thức chuẩn: Angle = 0.98 * (Angle + Gyro*dt) + 0.02 * Accel
+
+    DataStruct->Pitch_Filtered = 0.98f * (DataStruct->Pitch_Filtered + DataStruct->Gy * dt)
+                               + 0.02f * DataStruct->Pitch_Accel;
+}

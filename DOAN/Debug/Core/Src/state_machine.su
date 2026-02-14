@@ -1,0 +1,6 @@
+../Core/Src/state_machine.c:13:6:Set_Motor_Direction	16	static
+../Core/Src/state_machine.c:38:13:robot_idle_state	16	static
+../Core/Src/state_machine.c:46:13:robot_start_state	16	static
+../Core/Src/state_machine.c:63:13:robot_forward_state	16	static
+../Core/Src/state_machine.c:78:13:robot_backward_state	16	static
+../Core/Src/state_machine.c:93:13:robot_stopped_state	16	static

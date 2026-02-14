@@ -1,0 +1,20 @@
+14:10:56 **** Incremental Build of configuration Debug for project DOAN ****
+make -j12 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c:116:17: warning: 'time_counter' defined but not used [-Wunused-variable]
+  116 | static uint16_t time_counter = 0;
+      |                 ^~~~~~~~~~~~
+arm-none-eabi-gcc -o "DOAN.elf" @"objects.list"   -mcpu=cortex-m4 -T"E:\UIT\HeThongNhung\DoAn\final\DOAN\STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="DOAN.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: DOAN.elf
+ 
+arm-none-eabi-size  DOAN.elf 
+arm-none-eabi-objdump -h -S DOAN.elf  > "DOAN.list"
+   text	   data	    bss	    dec	    hex	filename
+  60820	    748	   9612	  71180	  1160c	DOAN.elf
+Finished building: default.size.stdout
+ 
+Finished building: DOAN.list
+ 
+
+14:10:58 Build Finished. 0 errors, 1 warnings. (took 1s.819ms)
+

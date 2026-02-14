@@ -1,0 +1,10 @@
+14:56:09 **** Incremental Build of configuration Debug for project TB6612FNG ****
+make -j12 all 
+arm-none-eabi-size  TB6612FNG.elf 
+   text	   data	    bss	    dec	    hex	filename
+  11124	     12	   1716	  12852	   3234	TB6612FNG.elf
+Finished building: default.size.stdout
+ 
+
+14:56:09 Build Finished. 0 errors, 0 warnings. (took 204ms)
+

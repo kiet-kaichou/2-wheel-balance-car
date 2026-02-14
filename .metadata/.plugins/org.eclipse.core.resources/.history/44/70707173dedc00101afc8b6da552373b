@@ -1,0 +1,106 @@
+/*
+ * Source file for MPU6050 Configuration
+ * Optimized Version
+ */
+
+#include "mpu6050.h"
+#include "main.h"
+#include <math.h>
+
+extern I2C_HandleTypeDef hi2c1;
+
+// Hằng số chuyển đổi Radian sang Degree (180/PI)
+#define RAD_TO_DEG 57.2957795f
+// Offset bù sai số lắp đặt (Tune giá trị này thực tế)
+#define PITCH_OFFSET 5.0f
+
+// Biến lưu góc trước đó cho bộ lọc bù (Nên đưa vào struct nếu có nhiều xe)
+float pre_pitch = 0.0f;
+
+void mpu6050_init()
+{
+  uint8_t set_gyro_range = GYRO_RANGE_500;
+  uint8_t set_accel_range = ACCEL_RANGE_4G;
+  uint8_t set_sleep_mode = SLEEP_MODE_OFF;
+
+  // Kiểm tra thiết bị
+  if (HAL_I2C_IsDeviceReady(&hi2c1, SENSOR_ADDR, 1, 100) != HAL_OK) {
+      printf("Device is not ready.\n\r");
+      return;
+  }
+
+  // Cấu hình Gyro, Accel và tắt Sleep mode
+  // Lưu ý: Có thể gộp các lệnh Write này nếu địa chỉ thanh ghi liên tiếp,
+  // nhưng để rời cũng không sao vì chỉ chạy 1 lần lúc khởi động.
+  if (HAL_I2C_Mem_Write(&hi2c1, SENSOR_ADDR, GYRO_CONFIG_REG, 1, &set_gyro_range, 1, 100) == HAL_OK &&
+      HAL_I2C_Mem_Write(&hi2c1, SENSOR_ADDR, ACCEL_CONFIG_REG, 1, &set_accel_range, 1, 100) == HAL_OK &&
+      HAL_I2C_Mem_Write(&hi2c1, SENSOR_ADDR, SLEEP_MODE_REG, 1, &set_sleep_mode, 1, 100) == HAL_OK)
+  {
+      printf("Sensor is ready and configured.\n\r");
+  }
+  else
+  {
+      printf("Config failed.\n\r");
+  }
+}
+
+void mpu6050_read_gyro(gyro_data * gyro)
+{
+    uint8_t raw_data[6];
+
+    // BURST READ: Đọc 6 bytes liên tiếp bắt đầu từ GYRO_XOUT_HIGH
+    // Giảm số lần giao tiếp I2C từ 6 lần xuống 1 lần -> Tăng tốc độ vòng lặp cực lớn
+    if (HAL_I2C_Mem_Read(&hi2c1, SENSOR_ADDR, GYRO_XOUT_HIGH, 1, raw_data, 6, 10) == HAL_OK)
+    {
+        // Ghép byte cao và byte thấp
+        gyro->x_val_raw = (int16_t)(raw_data[0] << 8 | raw_data[1]);
+        gyro->y_val_raw = (int16_t)(raw_data[2] << 8 | raw_data[3]);
+        gyro->z_val_raw = (int16_t)(raw_data[4] << 8 | raw_data[5]);
+
+        // Chuyển đổi sang đơn vị độ/giây (dùng float)
+        gyro->x_val = (float)gyro->x_val_raw / GYRO_SENSITIVITY;
+        gyro->y_val = (float)gyro->y_val_raw / GYRO_SENSITIVITY;
+        gyro->z_val = (float)gyro->z_val_raw / GYRO_SENSITIVITY;
+    }
+}
+
+void mpu6050_read_accel(accel_data * accel)
+{
+    uint8_t raw_data[6];
+
+    // BURST READ: Đọc 6 bytes liên tiếp từ ACCEL_XOUT_HIGH
+    if (HAL_I2C_Mem_Read(&hi2c1, SENSOR_ADDR, ACCEL_XOUT_HIGH, 1, raw_data, 6, 10) == HAL_OK)
+    {
+        accel->x_val_raw = (int16_t)(raw_data[0] << 8 | raw_data[1]);
+        accel->y_val_raw = (int16_t)(raw_data[2] << 8 | raw_data[3]);
+        accel->z_val_raw = (int16_t)(raw_data[4] << 8 | raw_data[5]);
+
+        // Chuyển đổi giá trị (đã tối ưu bỏ *10.0 nếu không cần thiết vị cụ thể dm/s2, dùng đơn vị g chuẩn hơn cho tính góc)
+        // Nếu bạn cần giữ *10.0 như code cũ để tương thích các phần khác, hãy giữ lại.
+        // Dưới đây dùng chuẩn g để tính góc chính xác hơn.
+        accel->x_val = (float)accel->x_val_raw / ACCEL_SENSITIVITY;
+        accel->y_val = (float)accel->y_val_raw / ACCEL_SENSITIVITY;
+        accel->z_val = (float)accel->z_val_raw / ACCEL_SENSITIVITY;
+
+        // Tính toán góc (Sử dụng atan2f và sqrtf của thư viện math.h float)
+        // atan2 tốt hơn atan vì nó xử lý được trường hợp mẫu số bằng 0 và xác định đúng góc phần tư
+
+        // Tính Roll
+        accel->roll_angle = atan2f(accel->y_val, sqrtf(accel->x_val * accel->x_val + accel->z_val * accel->z_val)) * RAD_TO_DEG;
+
+        // Tính Pitch (Lưu ý dấu - tùy thuộc vào cách đặt cảm biến)
+        accel->pitch_angle = (-atan2f(accel->x_val, sqrtf(accel->y_val * accel->y_val + accel->z_val * accel->z_val)) * RAD_TO_DEG) + PITCH_OFFSET;
+    }
+}
+
+void mpu6050_complementary_filter(gyro_data *gyro, accel_data *accel, filtered_angle_t *angle, float dt)
+{
+    // Alpha 0.98 tin tưởng Gyro, 0.02 tin tưởng Accel để khử trôi
+    const float alpha = 0.98f;
+
+    // Công thức bộ lọc bù
+    angle->pitch = alpha * (pre_pitch + gyro->x_val * dt) + (1.0f - alpha) * accel->pitch_angle;
+
+    // Cập nhật giá trị cũ
+    pre_pitch = angle->pitch;
+}

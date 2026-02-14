@@ -1,0 +1,50 @@
+17:52:54 **** Build of configuration Debug for project ENCODER ****
+make -j12 all 
+arm-none-eabi-gcc "E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/PID_motor.d" -MT"Core/Src/PID_motor.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/PID_motor.o"
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c: In function 'PID_Motor_Init':
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:22:8: error: 'MotorPID_t' has no member named 'v_thuc'
+   22 |     pid->v_thuc = 0.0f;
+      |        ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:23:8: error: 'MotorPID_t' has no member named 'e_speed'
+   23 |     pid->e_speed = 0.0f;
+      |        ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:24:8: error: 'MotorPID_t' has no member named 'v_filter'
+   24 |     pid->v_filter = 0.0f;
+      |        ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c: In function 'PID_Motor_Compute':
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:39:12: error: 'MotorPID_t' has no member named 'v_thuc'
+   39 |         pid->v_thuc = (float)(current_encoder - pid->prev_encoder) / pid->dt;
+      |            ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:42:8: error: 'MotorPID_t' has no member named 'v_filter'
+   42 |     pid->v_filter = 0.85f * pid->v_filter + 0.15f * pid->v_thuc;
+      |        ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:42:32: error: 'MotorPID_t' has no member named 'v_filter'
+   42 |     pid->v_filter = 0.85f * pid->v_filter + 0.15f * pid->v_thuc;
+      |                                ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:42:56: error: 'MotorPID_t' has no member named 'v_thuc'
+   42 |     pid->v_filter = 0.85f * pid->v_filter + 0.15f * pid->v_thuc;
+      |                                                        ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:43:8: error: 'MotorPID_t' has no member named 'e_speed'
+   43 |     pid->e_speed = target_speed - pid->v_thuc;
+      |        ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:43:38: error: 'MotorPID_t' has no member named 'v_thuc'
+   43 |     pid->e_speed = target_speed - pid->v_thuc;
+      |                                      ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:45:33: error: 'MotorPID_t' has no member named 'e_speed'
+   45 |     float p_part = pid->Kp * pid->e_speed;
+      |                                 ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:47:34: error: 'MotorPID_t' has no member named 'e_speed'
+   47 |     pid->I_part += (pid->Ki * pid->e_speed * pid->dt);
+      |                                  ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c: In function 'PID_Motor_Get_VThuc':
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:68:19: error: 'MotorPID_t' has no member named 'v_thuc'
+   68 |         return pid->v_thuc;
+      |                   ^~
+E:/UIT/HeThongNhung/DoAn/final/DOAN/Core/Src/PID_motor.c:69:1: warning: control reaches end of non-void function [-Wreturn-type]
+   69 | }
+      | ^
+make: *** [Core/Src/subdir.mk:37: Core/Src/PID_motor.o] Error 1
+"make -j12 all" terminated with exit code 2. Build might be incomplete.
+
+17:52:54 Build Failed. 13 errors, 1 warnings. (took 396ms)
+
